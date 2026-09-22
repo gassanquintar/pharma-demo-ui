@@ -15,7 +15,7 @@ for f in $paths; do
       command -v ruff >/dev/null 2>&1 && ruff format "$f" || true
       ;;
     *.ts|*.tsx|*.js|*.jsx|*.json|*.css)
-      command -v npx >/dev/null 2>&1 && npx --yes prettier --write "$f" >/dev/null 2>&1 || true
+      command -v pnpm >/dev/null 2>&1 && pnpm dlx prettier --write "$f" >/dev/null 2>&1 || true
       ;;
   esac
 done

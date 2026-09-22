@@ -20,6 +20,9 @@ Comandos:
 
 - `pnpm dev` — servidor de desarrollo.
 - `pnpm build` — `tsc --noEmit` + `vite build`.
+- `pnpm test` — tests unitarios.
+
+Configuración: copiar `.env.example` a `.env` (`VITE_RAG_API_URL`).
 
 ## Arquitectura: reglas no negociables
 
@@ -67,10 +70,9 @@ presión de tiempo:
 
 ## Testing
 
-Todavía no hay framework de tests: `docs/SPEC.md` (sección 7) no prevé
-evaluación ni dominio propio que testear. Por ahora la verificación es
-`pnpm build` (typecheck + build). Si una fase añade tests, se añade aquí el
-comando exacto (`pnpm test`).
+Comando: `pnpm test` (vitest + Testing Library, jsdom). Los tests usan un doble
+de `RagClient` (`src/testing/fakeRagClient.ts`), nunca la red. La integración
+real con los backends es manual. `pnpm build` hace typecheck + build.
 
 - Los tests del dominio (`domain/`, `ports/` con dobles) corren sin Docker
   levantado y sin red.
