@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test } from "vitest";
+import { RateLimitedError } from "../../api/httpErrors";
 import type { TriageClient, TriageReport } from "../../api/types";
 import { TriageProvider } from "../../context/TriageContext";
 import { fakeTriageClient } from "../../testing/fakeTriageClient";
@@ -89,6 +90,7 @@ test("mientras la petición está en curso, el botón de enviar se deshabilita",
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
   expect(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
+  expect(screen.getByRole("progressbar")).toBeInTheDocument();
 
   resolveRequest({
     drug: "ibuprofeno",
@@ -97,4 +99,28 @@ test("mientras la petición está en curso, el botón de enviar se deshabilita",
     execution_metadata: { tools_called: 1, verification_iterations: 0 },
   });
   expect(await screen.findByText("resumen")).toBeInTheDocument();
+  expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+});
+
+test("rate limit (429): avisa, deshabilita el envío y lo reactiva tras Retry-After", async () => {
+  // retryAfterSeconds fraccionario: el setTimeout real del contexto espera milisegundos de reloj,
+  // no segundos — 0.05s aquí mantiene el test rápido sin recurrir a fake timers (chocan con userEvent).
+  const { client } = fakeTriageClient(new RateLimitedError(0.05));
+  render(
+    <TriageProvider triageClient={client}>
+      <TriageView />
+    </TriageProvider>,
+  );
+  await userEvent.type(screen.getByLabelText("Medicamento"), "ibuprofeno");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("reintenta en 0.05s");
+  expect(alert).toHaveClass("MuiAlert-colorWarning");
+  expect(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
+
+  await userEvent.type(screen.getByLabelText("Medicamento"), "otro");
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Enviar" })).toBeEnabled(),
+  );
 });

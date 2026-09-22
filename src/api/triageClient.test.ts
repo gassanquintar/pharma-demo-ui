@@ -1,4 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
+import { RateLimitedError } from "./httpErrors";
 import { createTriageClient } from "./triageClient";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -34,4 +35,30 @@ test("askTriage lanza error si la API no responde ok", async () => {
   await expect(
     createTriageClient("http://api").askTriage({ drug: "x" }),
   ).rejects.toThrow("500");
+});
+
+test("askTriage lanza RateLimitedError con Retry-After si la API responde 429", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: new Headers({ "Retry-After": "20" }),
+    }),
+  );
+  const error = await createTriageClient("http://api")
+    .askTriage({ drug: "x" })
+    .catch((e) => e);
+  expect(error).toBeInstanceOf(RateLimitedError);
+  expect(error.retryAfterSeconds).toBe(20);
+});
+
+test("askTriage lanza un error claro si fetch falla (backend caído)", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
+  );
+  await expect(
+    createTriageClient("http://api").askTriage({ drug: "x" }),
+  ).rejects.toThrow("No se pudo conectar con el agente de farmacovigilancia");
 });

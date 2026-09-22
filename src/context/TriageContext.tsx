@@ -6,16 +6,19 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { RateLimitedError } from "../api/httpErrors";
 import type { TriageClient, TriageReport } from "../api/types";
 
 export type TriageMessage =
   | { kind: "drug"; text: string }
   | { kind: "report"; report: TriageReport }
-  | { kind: "failure"; message: string };
+  | { kind: "failure"; message: string }
+  | { kind: "rateLimited"; retryAfterSeconds: number };
 
 interface Triage {
   triageMessages: TriageMessage[];
   triagePending: boolean;
+  triageRateLimited: boolean;
   askTriage: (drug: string) => Promise<void>;
 }
 
@@ -30,6 +33,7 @@ export function TriageProvider({
 }) {
   const [triageMessages, setTriageMessages] = useState<TriageMessage[]>([]);
   const [triagePending, setTriagePending] = useState(false);
+  const [triageRateLimited, setTriageRateLimited] = useState(false);
 
   const askTriage = useCallback(
     async (drug: string) => {
@@ -45,12 +49,24 @@ export function TriageProvider({
           { kind: "report", report },
         ]);
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Error desconocido";
-        setTriageMessages((messages) => [
-          ...messages,
-          { kind: "failure", message },
-        ]);
+        if (error instanceof RateLimitedError) {
+          setTriageMessages((messages) => [
+            ...messages,
+            { kind: "rateLimited", retryAfterSeconds: error.retryAfterSeconds },
+          ]);
+          setTriageRateLimited(true);
+          setTimeout(
+            () => setTriageRateLimited(false),
+            error.retryAfterSeconds * 1000,
+          );
+        } else {
+          const message =
+            error instanceof Error ? error.message : "Error desconocido";
+          setTriageMessages((messages) => [
+            ...messages,
+            { kind: "failure", message },
+          ]);
+        }
       } finally {
         setTriagePending(false);
       }
@@ -59,8 +75,8 @@ export function TriageProvider({
   );
 
   const value = useMemo(
-    () => ({ triageMessages, triagePending, askTriage }),
-    [triageMessages, triagePending, askTriage],
+    () => ({ triageMessages, triagePending, triageRateLimited, askTriage }),
+    [triageMessages, triagePending, triageRateLimited, askTriage],
   );
   return (
     <TriageContext.Provider value={value}>{children}</TriageContext.Provider>

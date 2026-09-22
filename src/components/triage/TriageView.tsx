@@ -1,4 +1,4 @@
-import { Alert, Box } from "@mui/material";
+import { Alert, Box, CircularProgress } from "@mui/material";
 import { useEffect, useRef } from "react";
 import { useTriage } from "../../context/TriageContext";
 import MessageBubble from "../chat/MessageBubble";
@@ -6,12 +6,13 @@ import MessageInput from "../chat/MessageInput";
 import ReportBubble from "./ReportBubble";
 
 export default function TriageView() {
-  const { triageMessages, triagePending, askTriage } = useTriage();
+  const { triageMessages, triagePending, triageRateLimited, askTriage } =
+    useTriage();
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     end.current?.scrollIntoView?.({ behavior: "smooth" });
-  }, [triageMessages]);
+  }, [triageMessages, triagePending]);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -32,12 +33,24 @@ export default function TriageView() {
                   {message.message}
                 </Alert>
               );
+            case "rateLimited":
+              return (
+                <Alert key={index} severity="warning" sx={{ mb: 1.5 }}>
+                  Límite de peticiones alcanzado, reintenta en{" "}
+                  {message.retryAfterSeconds}s
+                </Alert>
+              );
           }
         })}
+        {triagePending && (
+          <MessageBubble align="left">
+            <CircularProgress size={20} />
+          </MessageBubble>
+        )}
         <div ref={end} />
       </Box>
       <MessageInput
-        disabled={triagePending}
+        disabled={triagePending || triageRateLimited}
         onSend={askTriage}
         label="Medicamento"
       />
