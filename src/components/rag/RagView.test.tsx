@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test } from "vitest";
+import { RateLimitedError } from "../../api/httpErrors";
 import type { QuestionResponse, RagClient } from "../../api/types";
 import { ConversationProvider } from "../../context/ConversationContext";
 import { fakeRagClient } from "../../testing/fakeRagClient";
@@ -106,6 +107,7 @@ test("mientras la petición está en curso, el botón de enviar se deshabilita",
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
   expect(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
+  expect(screen.getByRole("progressbar")).toBeInTheDocument();
 
   resolveRequest({
     answer: "2.400 mg al día",
@@ -113,5 +115,29 @@ test("mientras la petición está en curso, el botón de enviar se deshabilita",
     citations: [],
   });
   expect(await screen.findByText("2.400 mg al día")).toBeInTheDocument();
+  expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Enviar" })).toBeDisabled(); // sin texto tras limpiar el input
+});
+
+test("rate limit (429): avisa, deshabilita el envío y lo reactiva tras Retry-After", async () => {
+  // retryAfterSeconds fraccionario: el setTimeout real del contexto espera milisegundos de reloj,
+  // no segundos — 0.05s aquí mantiene el test rápido sin recurrir a fake timers (chocan con userEvent).
+  const { client } = fakeRagClient(new RateLimitedError(0.05));
+  render(
+    <ConversationProvider ragClient={client}>
+      <RagView />
+    </ConversationProvider>,
+  );
+  await userEvent.type(screen.getByLabelText("Pregunta"), "¿Dosis máxima?");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  const alert = await screen.findByRole("alert");
+  expect(alert).toHaveTextContent("reintenta en 0.05s");
+  expect(alert).toHaveClass("MuiAlert-colorWarning");
+  expect(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
+
+  await userEvent.type(screen.getByLabelText("Pregunta"), "otra");
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Enviar" })).toBeEnabled(),
+  );
 });

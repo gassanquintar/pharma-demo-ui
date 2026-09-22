@@ -4,9 +4,14 @@ import { useState, type FormEvent } from "react";
 interface Props {
   disabled: boolean;
   onSend: (text: string) => void;
+  label?: string;
 }
 
-export default function MessageInput({ disabled, onSend }: Props) {
+export default function MessageInput({
+  disabled,
+  onSend,
+  label = "Pregunta",
+}: Props) {
   const [text, setText] = useState("");
 
   const submit = (event: FormEvent) => {
@@ -26,7 +31,7 @@ export default function MessageInput({ disabled, onSend }: Props) {
       <TextField
         fullWidth
         size="small"
-        label="Pregunta"
+        label={label}
         value={text}
         onChange={(event) => setText(event.target.value)}
       />

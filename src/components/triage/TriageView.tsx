@@ -1,32 +1,32 @@
 import { Alert, Box, CircularProgress } from "@mui/material";
 import { useEffect, useRef } from "react";
-import { useConversation } from "../../context/ConversationContext";
+import { useTriage } from "../../context/TriageContext";
 import MessageBubble from "../chat/MessageBubble";
 import MessageInput from "../chat/MessageInput";
-import AnswerBubble from "./AnswerBubble";
+import ReportBubble from "./ReportBubble";
 
-export default function RagView() {
-  const { ragMessages, ragPending, ragRateLimited, askRagQuestion } =
-    useConversation();
+export default function TriageView() {
+  const { triageMessages, triagePending, triageRateLimited, askTriage } =
+    useTriage();
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     end.current?.scrollIntoView?.({ behavior: "smooth" });
-  }, [ragMessages, ragPending]);
+  }, [triageMessages, triagePending]);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
-        {ragMessages.map((message, index) => {
+        {triageMessages.map((message, index) => {
           switch (message.kind) {
-            case "question":
+            case "drug":
               return (
                 <MessageBubble key={index} align="right">
                   {message.text}
                 </MessageBubble>
               );
-            case "answer":
-              return <AnswerBubble key={index} response={message.response} />;
+            case "report":
+              return <ReportBubble key={index} report={message.report} />;
             case "failure":
               return (
                 <Alert key={index} severity="error" sx={{ mb: 1.5 }}>
@@ -42,7 +42,7 @@ export default function RagView() {
               );
           }
         })}
-        {ragPending && (
+        {triagePending && (
           <MessageBubble align="left">
             <CircularProgress size={20} />
           </MessageBubble>
@@ -50,8 +50,9 @@ export default function RagView() {
         <div ref={end} />
       </Box>
       <MessageInput
-        disabled={ragPending || ragRateLimited}
-        onSend={askRagQuestion}
+        disabled={triagePending || triageRateLimited}
+        onSend={askTriage}
+        label="Medicamento"
       />
     </Box>
   );

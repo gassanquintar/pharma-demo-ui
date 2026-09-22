@@ -1,4 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
+import { RateLimitedError } from "./httpErrors";
 import { createRagClient } from "./ragClient";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -29,4 +30,30 @@ test("askQuestion lanza error si la API no responde ok", async () => {
   await expect(
     createRagClient("http://api").askQuestion({ question: "x" }),
   ).rejects.toThrow("500");
+});
+
+test("askQuestion lanza RateLimitedError con Retry-After si la API responde 429", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: new Headers({ "Retry-After": "12" }),
+    }),
+  );
+  const error = await createRagClient("http://api")
+    .askQuestion({ question: "x" })
+    .catch((e) => e);
+  expect(error).toBeInstanceOf(RateLimitedError);
+  expect(error.retryAfterSeconds).toBe(12);
+});
+
+test("askQuestion lanza un error claro si fetch falla (backend caído)", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
+  );
+  await expect(
+    createRagClient("http://api").askQuestion({ question: "x" }),
+  ).rejects.toThrow("No se pudo conectar con el asistente RAG");
 });
