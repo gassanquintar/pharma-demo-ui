@@ -1,4 +1,4 @@
-import { Alert, Box, CircularProgress } from "@mui/material";
+import { Alert, Box, CircularProgress, Typography } from "@mui/material";
 import { useEffect, useRef } from "react";
 import { useConversation } from "../../context/ConversationContext";
 import MessageBubble from "../chat/MessageBubble";
@@ -17,6 +17,15 @@ export default function RagView() {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
+        {ragMessages.length === 0 && (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ textAlign: "center", mt: 4 }}
+          >
+            Escribe una pregunta sobre un medicamento para empezar.
+          </Typography>
+        )}
         {ragMessages.map((message, index) => {
           switch (message.kind) {
             case "question":
