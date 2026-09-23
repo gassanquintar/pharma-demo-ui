@@ -1,4 +1,4 @@
-import { AppBar, Box, Tab, Tabs } from "@mui/material";
+import { AppBar, Box, Tab, Tabs, Toolbar, Typography } from "@mui/material";
 import { useState } from "react";
 import RagView from "../rag/RagView";
 import TriageView from "../triage/TriageView";
@@ -11,6 +11,11 @@ export default function ChatLayout() {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <AppBar position="static" color="default" enableColorOnDark>
+        <Toolbar variant="dense" sx={{ justifyContent: "center" }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+            Pharma AI Demo
+          </Typography>
+        </Toolbar>
         <Tabs
           value={tab}
           onChange={(_, value: number) => setTab(value)}
